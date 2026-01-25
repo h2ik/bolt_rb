@@ -12,6 +12,7 @@ require_relative 'bolt_rb/handlers/command_handler'
 require_relative 'bolt_rb/handlers/action_handler'
 require_relative 'bolt_rb/handlers/shortcut_handler'
 require_relative 'bolt_rb/router'
+require_relative 'bolt_rb/testing'
 
 module BoltRb
   class Error < StandardError; end
