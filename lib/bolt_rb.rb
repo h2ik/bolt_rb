@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'logger'
+
 require_relative 'bolt_rb/version'
 require_relative 'bolt_rb/middleware/base'
 require_relative 'bolt_rb/middleware/chain'
@@ -17,6 +19,7 @@ require_relative 'bolt_rb/app'
 
 module BoltRb
   class Error < StandardError; end
+  class ConfigurationError < Error; end
 
   class << self
     # Returns the current configuration instance

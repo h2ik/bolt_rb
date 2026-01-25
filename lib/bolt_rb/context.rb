@@ -52,24 +52,36 @@ module BoltRb
     #
     # Handles various payload formats:
     # - event.user (string)
+    # - user_id (slash commands)
     # - user (string)
     # - user.id (nested object)
     #
     # @return [String, nil] The user ID or nil if not found
     def user
-      extract_id(payload.dig('event', 'user') || payload['user'] || payload.dig('user', 'id'))
+      extract_id(
+        payload.dig('event', 'user') ||
+        payload['user_id'] ||
+        payload['user'] ||
+        payload.dig('user', 'id')
+      )
     end
 
     # Extracts the channel ID from the payload
     #
     # Handles various payload formats:
     # - event.channel (string)
+    # - channel_id (slash commands)
     # - channel (string)
     # - channel.id (nested object)
     #
     # @return [String, nil] The channel ID or nil if not found
     def channel
-      extract_id(payload.dig('event', 'channel') || payload['channel'] || payload.dig('channel', 'id'))
+      extract_id(
+        payload.dig('event', 'channel') ||
+        payload['channel_id'] ||
+        payload['channel'] ||
+        payload.dig('channel', 'id')
+      )
     end
 
     # Extracts the text content from the event
