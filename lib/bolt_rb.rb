@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative 'bolt_rb/version'
+require_relative 'bolt_rb/middleware/base'
+require_relative 'bolt_rb/middleware/chain'
 require_relative 'bolt_rb/middleware/logging'
 require_relative 'bolt_rb/configuration'
 require_relative 'bolt_rb/context'
