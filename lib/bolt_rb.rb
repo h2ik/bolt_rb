@@ -3,6 +3,7 @@
 require_relative 'bolt_rb/version'
 require_relative 'bolt_rb/middleware/logging'
 require_relative 'bolt_rb/configuration'
+require_relative 'bolt_rb/context'
 
 module BoltRb
   class Error < StandardError; end
