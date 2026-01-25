@@ -5,6 +5,7 @@ require_relative 'bolt_rb/middleware/logging'
 require_relative 'bolt_rb/configuration'
 require_relative 'bolt_rb/context'
 require_relative 'bolt_rb/handlers/base'
+require_relative 'bolt_rb/handlers/event_handler'
 
 module BoltRb
   class Error < StandardError; end
