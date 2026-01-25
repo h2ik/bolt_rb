@@ -11,6 +11,7 @@ require_relative 'bolt_rb/handlers/event_handler'
 require_relative 'bolt_rb/handlers/command_handler'
 require_relative 'bolt_rb/handlers/action_handler'
 require_relative 'bolt_rb/handlers/shortcut_handler'
+require_relative 'bolt_rb/router'
 
 module BoltRb
   class Error < StandardError; end
@@ -47,6 +48,21 @@ module BoltRb
     # @return [Logger] The configured logger instance
     def logger
       configuration.logger
+    end
+
+    # Returns the global router instance
+    #
+    # @return [Router] The memoized router instance
+    def router
+      @router ||= Router.new
+    end
+
+    # Resets the router to a fresh instance
+    # Useful for testing or reconfiguration scenarios
+    #
+    # @return [Router] The new router instance
+    def reset_router!
+      @router = Router.new
     end
   end
 end
