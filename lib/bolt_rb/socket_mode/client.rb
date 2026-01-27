@@ -77,6 +77,7 @@ module BoltRb
       # @return [void]
       def request_stop
         @running = false
+        @websocket&.close
       end
 
       # @return [Boolean] Whether the client is currently running
