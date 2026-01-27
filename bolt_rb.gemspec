@@ -16,7 +16,8 @@ Gem::Specification.new do |spec|
   spec.files = Dir.glob('{lib}/**/*') + %w[README.md LICENSE.txt]
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'slack-ruby-client', '~> 2.0'
+  spec.add_dependency 'slack-ruby-client', '~> 3.0'
+  spec.add_dependency 'websocket-client-simple', '~> 0.9'
 
   spec.add_development_dependency 'bundler', '~> 2.0'
   spec.add_development_dependency 'rake', '~> 13.0'

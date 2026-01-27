@@ -4,7 +4,7 @@ require 'spec_helper'
 
 RSpec.describe BoltRb::App do
   let(:web_client) { instance_double(Slack::Web::Client) }
-  let(:socket_client) { instance_double(Slack::RealTime::Client) }
+  let(:socket_client) { instance_double(BoltRb::SocketMode::Client) }
 
   before do
     BoltRb.reset_configuration!
@@ -15,8 +15,8 @@ RSpec.describe BoltRb::App do
     end
 
     allow(Slack::Web::Client).to receive(:new).and_return(web_client)
-    allow(Slack::RealTime::Client).to receive(:new).and_return(socket_client)
-    allow(socket_client).to receive(:on)
+    allow(BoltRb::SocketMode::Client).to receive(:new).and_return(socket_client)
+    allow(socket_client).to receive(:on_message)
   end
 
   describe '#initialize' do
@@ -25,9 +25,11 @@ RSpec.describe BoltRb::App do
       expect(Slack::Web::Client).to have_received(:new).with(token: 'xoxb-test')
     end
 
-    it 'creates a socket client' do
+    it 'creates a socket mode client' do
       described_class.new
-      expect(Slack::RealTime::Client).to have_received(:new).with(token: 'xapp-test')
+      expect(BoltRb::SocketMode::Client).to have_received(:new).with(
+        hash_including(app_token: 'xapp-test')
+      )
     end
   end
 

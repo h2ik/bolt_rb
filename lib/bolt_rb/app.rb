@@ -36,6 +36,9 @@ module BoltRb
     # @return [Configuration] The configuration instance
     attr_reader :config
 
+    # @return [SocketMode::Client] The Socket Mode client instance
+    attr_reader :socket_client
+
     # Creates a new App instance
     #
     # Initializes the Slack Web API client for making API calls
@@ -44,9 +47,8 @@ module BoltRb
       @config = BoltRb.configuration
       @router = BoltRb.router
       @client = Slack::Web::Client.new(token: config.bot_token)
-      @socket_client = Slack::RealTime::Client.new(token: config.app_token)
 
-      setup_socket_handlers
+      setup_socket_client
     end
 
     # Starts the Socket Mode connection
@@ -57,8 +59,8 @@ module BoltRb
     # @return [void]
     def start
       load_handlers
-      BoltRb.logger.info '[BoltRb] Connecting to Slack...'
-      @socket_client.start!
+      BoltRb.logger.info '[BoltRb] Starting app...'
+      @socket_client.start
     end
 
     # Stops the Socket Mode connection
@@ -67,8 +69,13 @@ module BoltRb
     #
     # @return [void]
     def stop
-      BoltRb.logger.info '[BoltRb] Disconnecting...'
-      @socket_client.stop!
+      BoltRb.logger.info '[BoltRb] Stopping app...'
+      @socket_client.stop
+    end
+
+    # @return [Boolean] Whether the app is currently running
+    def running?
+      @socket_client.running?
     end
 
     # Processes an incoming event payload
@@ -95,12 +102,48 @@ module BoltRb
 
     private
 
-    # Sets up event handlers for the Socket Mode client
+    # Sets up the Socket Mode client with event handling
     #
     # @return [void]
-    def setup_socket_handlers
-      @socket_client.on :message do |raw_event|
-        process_event(raw_event)
+    def setup_socket_client
+      @socket_client = SocketMode::Client.new(
+        app_token: config.app_token,
+        logger: BoltRb.logger
+      )
+
+      @socket_client.on_message do |data|
+        handle_socket_event(data)
+      end
+    end
+
+    # Handles incoming Socket Mode events
+    #
+    # Extracts the payload from the Socket Mode envelope and routes it
+    # to the appropriate handlers.
+    #
+    # @param data [Hash] The Socket Mode envelope data
+    # @return [void]
+    def handle_socket_event(data)
+      payload = extract_payload(data)
+      process_event(payload) if payload
+    rescue StandardError => e
+      BoltRb.logger.error "[BoltRb] Error handling socket event: #{e.message}"
+      BoltRb.logger.error e.backtrace.first(5).join("\n")
+    end
+
+    # Extracts the event payload from a Socket Mode envelope
+    #
+    # @param data [Hash] The Socket Mode envelope
+    # @return [Hash, nil] The extracted payload or nil if not processable
+    def extract_payload(data)
+      case data[:type]
+      when 'events_api'
+        data[:payload]
+      when 'interactive', 'slash_commands', 'block_actions', 'view_submission', 'view_closed', 'shortcut'
+        data[:payload]
+      else
+        # For unknown types, pass through the whole data
+        data
       end
     end
 
@@ -132,16 +175,15 @@ module BoltRb
 
     # Builds the acknowledgement function for a payload
     #
-    # For Socket Mode, acknowledgement is handled differently than HTTP.
-    # This is a placeholder that will be expanded when full Socket Mode
-    # support is implemented.
+    # Socket Mode acknowledgements are handled automatically by the
+    # SocketMode::Client, so this returns a no-op for handlers.
     #
-    # @param _payload [Hash] The event payload (unused in placeholder)
+    # @param _payload [Hash] The event payload (unused)
     # @return [Proc] The ack function
     def build_ack_fn(_payload)
-      # For Socket Mode, ack is handled differently than HTTP
-      # This is a placeholder - real implementation depends on socket-mode gem
-      ->(_response) {}
+      # Socket Mode acks are handled automatically by the client
+      # This allows handlers to call ack() without errors
+      ->(_response = nil) {}
     end
 
     # Executes a single handler with error handling
