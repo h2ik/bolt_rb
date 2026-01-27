@@ -73,6 +73,16 @@ module BoltRb
       @socket_client.stop
     end
 
+    # Requests a stop - safe to call from trap context
+    #
+    # Use this in signal handlers instead of stop to avoid
+    # ThreadError from calling methods that use mutexes.
+    #
+    # @return [void]
+    def request_stop
+      @socket_client.request_stop
+    end
+
     # @return [Boolean] Whether the app is currently running
     def running?
       @socket_client.running?

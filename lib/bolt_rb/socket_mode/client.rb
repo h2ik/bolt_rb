@@ -42,7 +42,6 @@ module BoltRb
         @running = false
         @websocket = nil
         @message_handlers = []
-        @mutex = Mutex.new
       end
 
       # Registers a handler for incoming messages
@@ -71,6 +70,13 @@ module BoltRb
       def stop
         @running = false
         @websocket&.close
+      end
+
+      # Requests a stop - safe to call from trap context
+      #
+      # @return [void]
+      def request_stop
+        @running = false
       end
 
       # @return [Boolean] Whether the client is currently running
@@ -193,7 +199,8 @@ module BoltRb
       # @param msg [WebSocket::Client::Simple::Message] The message
       # @return [void]
       def handle_message(msg)
-        return if msg.data.nil? || msg.data.empty?
+        # Skip nil, empty, or non-JSON data (like WebSocket ping/pong frames)
+        return if msg.data.nil? || msg.data.empty? || !msg.data.start_with?('{')
 
         data = JSON.parse(msg.data, symbolize_names: true)
 
