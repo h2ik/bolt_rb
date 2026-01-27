@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = 'A bolt-js inspired framework for building Slack bots in Ruby'
   spec.description   = 'Provides a clean DSL for handling Slack events, commands, actions, and shortcuts using Socket Mode'
-  spec.homepage      = 'https://github.com/h2ik/bolt-rb'
+  spec.homepage      = 'https://github.com/h2ik/bolt_rb'
   spec.license       = 'MIT'
   spec.required_ruby_version = '>= 3.0.0'
 
