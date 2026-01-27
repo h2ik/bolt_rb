@@ -146,11 +146,11 @@ module BoltRb
     # @param data [Hash] The Socket Mode envelope
     # @return [Hash, nil] The extracted payload or nil if not processable
     def extract_payload(data)
-      case data[:type]
+      case data['type']
       when 'events_api'
-        data[:payload]
+        data['payload']
       when 'interactive', 'slash_commands', 'block_actions', 'view_submission', 'view_closed', 'shortcut'
-        data[:payload]
+        data['payload']
       else
         # For unknown types, pass through the whole data
         data

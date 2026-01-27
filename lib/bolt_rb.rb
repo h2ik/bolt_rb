@@ -2,22 +2,7 @@
 
 require 'logger'
 
-require_relative 'bolt_rb/version'
-require_relative 'bolt_rb/middleware/base'
-require_relative 'bolt_rb/middleware/chain'
-require_relative 'bolt_rb/middleware/logging'
-require_relative 'bolt_rb/configuration'
-require_relative 'bolt_rb/context'
-require_relative 'bolt_rb/handlers/base'
-require_relative 'bolt_rb/handlers/event_handler'
-require_relative 'bolt_rb/handlers/command_handler'
-require_relative 'bolt_rb/handlers/action_handler'
-require_relative 'bolt_rb/handlers/shortcut_handler'
-require_relative 'bolt_rb/router'
-require_relative 'bolt_rb/socket_mode/client'
-require_relative 'bolt_rb/testing'
-require_relative 'bolt_rb/app'
-
+# Define the module and core methods first so they're available during handler loading
 module BoltRb
   class Error < StandardError; end
   class ConfigurationError < Error; end
@@ -72,3 +57,20 @@ module BoltRb
     end
   end
 end
+
+require_relative 'bolt_rb/version'
+require_relative 'bolt_rb/middleware/base'
+require_relative 'bolt_rb/middleware/chain'
+require_relative 'bolt_rb/middleware/logging'
+require_relative 'bolt_rb/configuration'
+require_relative 'bolt_rb/context'
+require_relative 'bolt_rb/router'
+require_relative 'bolt_rb/handlers/base'
+require_relative 'bolt_rb/handlers/event_handler'
+require_relative 'bolt_rb/handlers/command_handler'
+require_relative 'bolt_rb/handlers/action_handler'
+require_relative 'bolt_rb/handlers/shortcut_handler'
+require_relative 'bolt_rb/handlers/view_submission_handler'
+require_relative 'bolt_rb/socket_mode/client'
+require_relative 'bolt_rb/testing'
+require_relative 'bolt_rb/app'

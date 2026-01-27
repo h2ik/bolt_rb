@@ -69,13 +69,16 @@ module BoltRb
 
         # Hook called when a class inherits from Base
         #
-        # Ensures each subclass gets its own independent middleware stack.
+        # Ensures each subclass gets its own independent middleware stack
+        # and registers the handler with the global router.
         #
         # @param subclass [Class] The inheriting class
         # @return [void]
         def inherited(subclass)
           super
           subclass.instance_variable_set(:@middleware_stack, [])
+          # Auto-register with the global router
+          BoltRb.router.register(subclass)
         end
       end
 

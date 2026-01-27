@@ -29,7 +29,7 @@ module BoltRb
     # Registers a handler class with the router
     #
     # The handler class should respond to .matches?(payload) to determine
-    # if it should process a given payload.
+    # if it should process a given payload. Duplicate registrations are ignored.
     #
     # @param handler_class [Class] A handler class (EventHandler, CommandHandler, etc.)
     # @return [void]
@@ -37,7 +37,7 @@ module BoltRb
     # @example
     #   router.register(MyMessageHandler)
     def register(handler_class)
-      @handlers << handler_class
+      @handlers << handler_class unless @handlers.include?(handler_class)
     end
 
     # Routes a payload to all matching handlers

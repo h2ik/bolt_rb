@@ -74,10 +74,13 @@ module BoltRb
 
       # Requests a stop - safe to call from trap context
       #
+      # Only sets the running flag to false. Does NOT close the websocket
+      # or perform any operations that might use mutexes, as this is
+      # designed to be called from signal trap handlers.
+      #
       # @return [void]
       def request_stop
         @running = false
-        @websocket&.close
       end
 
       # @return [Boolean] Whether the client is currently running
@@ -100,6 +103,9 @@ module BoltRb
           sleep 0.1
           reconnect_if_needed
         end
+      ensure
+        # Clean up websocket when loop exits
+        @websocket&.close
       end
 
       # Reconnects if the WebSocket is disconnected
@@ -203,21 +209,24 @@ module BoltRb
         # Skip nil, empty, or non-JSON data (like WebSocket ping/pong frames)
         return if msg.data.nil? || msg.data.empty? || !msg.data.start_with?('{')
 
-        data = JSON.parse(msg.data, symbolize_names: true)
+        data = JSON.parse(msg.data)
 
-        # Handle Slack's ping/hello messages
-        case data[:type]
+        # Handle Slack's control messages
+        case data['type']
         when 'hello'
           logger.debug '[SocketMode] Received hello from Slack'
           return
         when 'disconnect'
-          logger.info "[SocketMode] Disconnect requested: #{data[:reason]}"
+          logger.info "[SocketMode] Disconnect requested: #{data['reason']}"
           @websocket&.close
+          return
+        when 'ping'
+          handle_ping(data)
           return
         end
 
         # Acknowledge the event
-        acknowledge(data[:envelope_id]) if data[:envelope_id]
+        acknowledge(data['envelope_id']) if data['envelope_id']
 
         # Dispatch to handlers
         dispatch_event(data)
@@ -242,6 +251,20 @@ module BoltRb
       # @return [void]
       def handle_close(event)
         logger.info "[SocketMode] WebSocket closed: #{event}"
+      end
+
+      # Handles Slack Socket Mode ping message
+      #
+      # Responds with a pong message echoing back the num field
+      # @param data [Hash] The ping message data
+      # @return [void]
+      def handle_ping(data)
+        return unless @websocket&.open?
+
+        pong = { 'type' => 'pong' }
+        pong['num'] = data['num'] if data['num']
+        @websocket.send(pong.to_json)
+        logger.debug "[SocketMode] Responded to ping#{data['num'] ? " (num: #{data['num']})" : ''}"
       end
 
       # Sends an acknowledgement for an event

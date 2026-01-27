@@ -14,9 +14,7 @@ app = BoltRb::App.new
 
 %w[INT TERM].each do |signal|
   Signal.trap(signal) do
-    puts "\nShutting down..."
-    app.stop
-    exit 0
+    app.request_stop
   end
 end
 

@@ -19,4 +19,9 @@ RSpec.configure do |config|
   config.disable_monkey_patching!
   config.order = :random
   Kernel.srand config.seed
+
+  # Reset router before each test to clear auto-registered handlers
+  config.before do
+    BoltRb.reset_router!
+  end
 end

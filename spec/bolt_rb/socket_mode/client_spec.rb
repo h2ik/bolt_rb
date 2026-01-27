@@ -120,4 +120,77 @@ RSpec.describe BoltRb::SocketMode::Client do
       expect(websocket).not_to have_received(:send)
     end
   end
+
+  describe 'ping handling' do
+    let(:client) { described_class.new(app_token: app_token, logger: logger) }
+    let(:websocket) { instance_double(WebSocket::Client::Simple::Client) }
+
+    before do
+      client.instance_variable_set(:@websocket, websocket)
+      allow(websocket).to receive(:open?).and_return(true)
+      allow(websocket).to receive(:send)
+    end
+
+    it 'responds to ping with pong' do
+      client.send(:handle_ping, { 'type' => 'ping' })
+
+      expect(websocket).to have_received(:send).with('{"type":"pong"}')
+    end
+
+    it 'echoes back the num field when present' do
+      client.send(:handle_ping, { 'type' => 'ping', 'num' => 42 })
+
+      expect(websocket).to have_received(:send).with('{"type":"pong","num":42}')
+    end
+
+    it 'does not send pong when websocket is closed' do
+      allow(websocket).to receive(:open?).and_return(false)
+
+      client.send(:handle_ping, { 'type' => 'ping', 'num' => 123 })
+
+      expect(websocket).not_to have_received(:send)
+    end
+  end
+
+  describe 'message handling' do
+    let(:client) { described_class.new(app_token: app_token, logger: logger) }
+    let(:websocket) { instance_double(WebSocket::Client::Simple::Client) }
+
+    before do
+      client.instance_variable_set(:@websocket, websocket)
+      allow(websocket).to receive(:open?).and_return(true)
+      allow(websocket).to receive(:send)
+    end
+
+    it 'handles ping messages and does not dispatch to handlers' do
+      handler_called = false
+      client.on_message { handler_called = true }
+
+      msg = double('message', data: '{"type":"ping","num":1}')
+      client.send(:handle_message, msg)
+
+      expect(handler_called).to be false
+      expect(websocket).to have_received(:send).with('{"type":"pong","num":1}')
+    end
+
+    it 'handles hello messages and does not dispatch to handlers' do
+      handler_called = false
+      client.on_message { handler_called = true }
+
+      msg = double('message', data: '{"type":"hello"}')
+      client.send(:handle_message, msg)
+
+      expect(handler_called).to be false
+    end
+
+    it 'dispatches regular events to handlers' do
+      received_data = nil
+      client.on_message { |data| received_data = data }
+
+      msg = double('message', data: '{"type":"events_api","envelope_id":"env-456","payload":{"foo":"bar"}}')
+      client.send(:handle_message, msg)
+
+      expect(received_data).to include('type' => 'events_api', 'envelope_id' => 'env-456')
+    end
+  end
 end
