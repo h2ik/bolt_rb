@@ -25,6 +25,8 @@ module BoltRb
     class Client
       SLACK_API_URL = 'https://slack.com/api/apps.connections.open'
       RECONNECT_DELAY = 5
+      # If no messages received in this many seconds, assume zombie socket
+      CONNECTION_STALE_THRESHOLD = 45
 
       # @return [String] The Slack app-level token
       attr_reader :app_token
@@ -42,6 +44,7 @@ module BoltRb
         @running = false
         @websocket = nil
         @message_handlers = []
+        @last_message_at = nil
       end
 
       # Registers a handler for incoming messages
@@ -104,11 +107,18 @@ module BoltRb
 
         while @running
           sleep 0.1
+
+          # Check for zombie socket - library reports open but no messages received
+          if connection_stale?
+            logger.warn "[SocketMode] Connection stale (no messages in #{CONNECTION_STALE_THRESHOLD}s), forcing reconnect"
+            force_reconnect
+          end
+
           reconnect_if_needed
 
           # Periodic heartbeat to confirm the loop is alive
           if Time.now - last_heartbeat >= heartbeat_interval
-            logger.debug "[SocketMode] Heartbeat: connected=#{connected?}, websocket_open=#{@websocket&.open?}"
+            logger.debug "[SocketMode] Heartbeat: connected=#{connected?}, websocket_open=#{@websocket&.open?}, last_msg=#{@last_message_at&.strftime('%H:%M:%S') || 'never'}"
             last_heartbeat = Time.now
           end
         end
@@ -126,6 +136,31 @@ module BoltRb
         logger.info '[SocketMode] Connection lost, reconnecting...'
         sleep RECONNECT_DELAY
         connect_with_retry
+      end
+
+      # Checks if the connection appears stale (zombie socket)
+      #
+      # Returns true if we have an apparently open connection but haven't
+      # received any messages in CONNECTION_STALE_THRESHOLD seconds
+      #
+      # @return [Boolean]
+      def connection_stale?
+        return false unless @websocket&.open?
+        return false if @last_message_at.nil?
+
+        Time.now - @last_message_at > CONNECTION_STALE_THRESHOLD
+      end
+
+      # Forces a reconnection by closing the current socket
+      #
+      # Used when we detect a zombie socket that reports open but isn't
+      # actually receiving messages
+      #
+      # @return [void]
+      def force_reconnect
+        @websocket&.close
+        @last_message_at = nil
+        # reconnect_if_needed will pick this up on the next loop iteration
       end
 
       # Attempts to connect with retry logic
@@ -207,6 +242,7 @@ module BoltRb
       #
       # @return [void]
       def handle_open
+        @last_message_at = Time.now
         logger.info '[SocketMode] Connected to Slack'
       end
 
@@ -215,11 +251,21 @@ module BoltRb
       # @param msg [WebSocket::Client::Simple::Message] The message
       # @return [void]
       def handle_message(msg)
-        raw_data = msg.data
-        logger.debug "[SocketMode] Raw message received: #{raw_data.nil? ? '(nil)' : raw_data[0, 200]}"
+        # Track message receipt for connection health monitoring
+        @last_message_at = Time.now
 
-        # Skip nil, empty, or non-JSON data (like WebSocket ping/pong frames)
-        return if msg.data.nil? || msg.data.empty? || !msg.data.start_with?('{')
+        # Handle WebSocket protocol-level ping frames (Opcode 0x9)
+        # Must respond with pong frame echoing the same payload
+        if msg.type == :ping
+          handle_websocket_ping(msg.data)
+          return
+        end
+
+        raw_data = msg.data
+        logger.debug "[SocketMode] Raw message received (type=#{msg.type}): #{raw_data.nil? ? '(nil)' : raw_data[0, 200]}"
+
+        # Skip nil, empty, or non-JSON data
+        return if raw_data.nil? || raw_data.empty? || !raw_data.start_with?('{')
 
         data = JSON.parse(msg.data)
 
@@ -265,7 +311,7 @@ module BoltRb
         logger.info "[SocketMode] WebSocket closed: #{event}"
       end
 
-      # Handles Slack Socket Mode ping message
+      # Handles Slack Socket Mode JSON ping message
       #
       # Responds with a pong message echoing back the num field
       # @param data [Hash] The ping message data
@@ -276,7 +322,21 @@ module BoltRb
         pong = { 'type' => 'pong' }
         pong['num'] = data['num'] if data['num']
         @websocket.send(pong.to_json)
-        logger.debug "[SocketMode] Responded to ping#{data['num'] ? " (num: #{data['num']})" : ''}"
+        logger.debug "[SocketMode] Sent pong response#{data['num'] ? " (num: #{data['num']})" : ''}"
+      end
+
+      # Handles WebSocket protocol-level ping frames (Opcode 0x9)
+      #
+      # Per WebSocket RFC 6455, we must respond with a pong frame (Opcode 0xA)
+      # that echoes back the exact payload from the ping frame.
+      # @param payload [String] The ping frame payload to echo back
+      # @return [void]
+      def handle_websocket_ping(payload)
+        return unless @websocket&.open?
+
+        logger.debug "[SocketMode] WebSocket ping received: '#{payload}'"
+        @websocket.send(payload, type: :pong)
+        logger.debug "[SocketMode] Sent WebSocket pong frame: '#{payload}'"
       end
 
       # Sends an acknowledgement for an event

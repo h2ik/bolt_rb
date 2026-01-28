@@ -166,7 +166,7 @@ RSpec.describe BoltRb::SocketMode::Client do
       handler_called = false
       client.on_message { handler_called = true }
 
-      msg = double('message', data: '{"type":"ping","num":1}')
+      msg = double('message', type: :text, data: '{"type":"ping","num":1}')
       client.send(:handle_message, msg)
 
       expect(handler_called).to be false
@@ -177,7 +177,7 @@ RSpec.describe BoltRb::SocketMode::Client do
       handler_called = false
       client.on_message { handler_called = true }
 
-      msg = double('message', data: '{"type":"hello"}')
+      msg = double('message', type: :text, data: '{"type":"hello"}')
       client.send(:handle_message, msg)
 
       expect(handler_called).to be false
@@ -187,10 +187,96 @@ RSpec.describe BoltRb::SocketMode::Client do
       received_data = nil
       client.on_message { |data| received_data = data }
 
-      msg = double('message', data: '{"type":"events_api","envelope_id":"env-456","payload":{"foo":"bar"}}')
+      msg = double('message', type: :text, data: '{"type":"events_api","envelope_id":"env-456","payload":{"foo":"bar"}}')
       client.send(:handle_message, msg)
 
       expect(received_data).to include('type' => 'events_api', 'envelope_id' => 'env-456')
+    end
+
+    it 'updates last_message_at timestamp on message receipt' do
+      before_time = Time.now
+      msg = double('message', type: :text, data: '{"type":"hello"}')
+      client.send(:handle_message, msg)
+      after_time = Time.now
+
+      last_msg_at = client.instance_variable_get(:@last_message_at)
+      expect(last_msg_at).to be >= before_time
+      expect(last_msg_at).to be <= after_time
+    end
+
+    it 'handles WebSocket ping frames with pong frame response' do
+      msg = double('message', type: :ping, data: 'Ping from applink-14')
+      client.send(:handle_message, msg)
+
+      # Should respond with pong frame echoing the payload
+      expect(websocket).to have_received(:send).with('Ping from applink-14', type: :pong)
+    end
+
+    it 'does not dispatch WebSocket ping frames to handlers' do
+      handler_called = false
+      client.on_message { handler_called = true }
+
+      msg = double('message', type: :ping, data: 'Ping from applink-14')
+      client.send(:handle_message, msg)
+
+      expect(handler_called).to be false
+    end
+  end
+
+  describe 'connection staleness detection' do
+    let(:client) { described_class.new(app_token: app_token, logger: logger) }
+    let(:websocket) { instance_double(WebSocket::Client::Simple::Client) }
+
+    before do
+      client.instance_variable_set(:@websocket, websocket)
+      allow(websocket).to receive(:open?).and_return(true)
+      allow(websocket).to receive(:close)
+    end
+
+    describe '#connection_stale?' do
+      it 'returns false when websocket is not open' do
+        allow(websocket).to receive(:open?).and_return(false)
+        client.instance_variable_set(:@last_message_at, Time.now - 100)
+
+        expect(client.send(:connection_stale?)).to be false
+      end
+
+      it 'returns false when last_message_at is nil' do
+        client.instance_variable_set(:@last_message_at, nil)
+
+        expect(client.send(:connection_stale?)).to be false
+      end
+
+      it 'returns false when message received recently' do
+        client.instance_variable_set(:@last_message_at, Time.now - 10)
+
+        expect(client.send(:connection_stale?)).to be false
+      end
+
+      it 'returns true when no message received within threshold' do
+        stale_time = Time.now - (described_class::CONNECTION_STALE_THRESHOLD + 1)
+        client.instance_variable_set(:@last_message_at, stale_time)
+
+        expect(client.send(:connection_stale?)).to be true
+      end
+    end
+
+    describe '#force_reconnect' do
+      it 'closes the websocket' do
+        client.instance_variable_set(:@last_message_at, Time.now)
+
+        client.send(:force_reconnect)
+
+        expect(websocket).to have_received(:close)
+      end
+
+      it 'resets last_message_at to nil' do
+        client.instance_variable_set(:@last_message_at, Time.now)
+
+        client.send(:force_reconnect)
+
+        expect(client.instance_variable_get(:@last_message_at)).to be_nil
+      end
     end
   end
 end
