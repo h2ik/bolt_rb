@@ -99,9 +99,18 @@ module BoltRb
       #
       # @return [void]
       def run_loop
+        last_heartbeat = Time.now
+        heartbeat_interval = 60 # Log every 60 seconds
+
         while @running
           sleep 0.1
           reconnect_if_needed
+
+          # Periodic heartbeat to confirm the loop is alive
+          if Time.now - last_heartbeat >= heartbeat_interval
+            logger.debug "[SocketMode] Heartbeat: connected=#{connected?}, websocket_open=#{@websocket&.open?}"
+            last_heartbeat = Time.now
+          end
         end
       ensure
         # Clean up websocket when loop exits
@@ -206,6 +215,8 @@ module BoltRb
       # @param msg [WebSocket::Client::Simple::Message] The message
       # @return [void]
       def handle_message(msg)
+        logger.debug "[SocketMode] Raw message received: #{msg.data&.truncate(200) || '(nil)'}"
+
         # Skip nil, empty, or non-JSON data (like WebSocket ping/pong frames)
         return if msg.data.nil? || msg.data.empty? || !msg.data.start_with?('{')
 
