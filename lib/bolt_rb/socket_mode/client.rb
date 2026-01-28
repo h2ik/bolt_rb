@@ -215,7 +215,8 @@ module BoltRb
       # @param msg [WebSocket::Client::Simple::Message] The message
       # @return [void]
       def handle_message(msg)
-        logger.debug "[SocketMode] Raw message received: #{msg.data&.truncate(200) || '(nil)'}"
+        raw_data = msg.data
+        logger.debug "[SocketMode] Raw message received: #{raw_data.nil? ? '(nil)' : raw_data[0, 200]}"
 
         # Skip nil, empty, or non-JSON data (like WebSocket ping/pong frames)
         return if msg.data.nil? || msg.data.empty? || !msg.data.start_with?('{')
