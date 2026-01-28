@@ -169,6 +169,26 @@ end
 
 **Available methods:** `view`, `callback_id`, `private_metadata`, `values`, `view_hash`, `response_urls`, `user_id`, `ack`, `say`, `client`
 
+### View Closed
+
+Handle modal close/cancel events (requires `notify_on_close: true` when opening the modal):
+
+```ruby
+class TicketCancelHandler < BoltRb::ViewClosedHandler
+  view_closed 'create_ticket_modal'
+
+  def handle
+    ack
+    # Clean up drafts, cancel in-progress operations, etc.
+    unless is_cleared?
+      # User manually closed (X or Cancel button)
+    end
+  end
+end
+```
+
+**Available methods:** `view`, `callback_id`, `private_metadata`, `is_cleared?`, `user_id`, `ack`, `client`
+
 ## Handler Methods
 
 All handlers have access to:

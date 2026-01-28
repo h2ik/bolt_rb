@@ -38,6 +38,8 @@ module BoltRb
       # - Slash commands: command
       # - Block actions: type with action_ids
       # - Shortcuts: type with callback_id
+      # - View submissions: view_submission with callback_id
+      # - View closed: view_closed with callback_id
       #
       # @param payload [Hash] The raw Slack payload
       # @return [String] A descriptive event type string
@@ -51,6 +53,10 @@ module BoltRb
           "action:#{action_ids}"
         elsif payload['type'] == 'shortcut' || payload['type'] == 'message_action'
           "shortcut:#{payload['callback_id']}"
+        elsif payload['type'] == 'view_submission'
+          "view_submission:#{payload.dig('view', 'callback_id')}"
+        elsif payload['type'] == 'view_closed'
+          "view_closed:#{payload.dig('view', 'callback_id')}"
         else
           'unknown'
         end
