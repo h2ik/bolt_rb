@@ -223,6 +223,35 @@ RSpec.describe BoltRb::SocketMode::Client do
     end
   end
 
+  describe '#healthy?' do
+    let(:client) { described_class.new(app_token: app_token, logger: logger) }
+
+    it 'returns false when last_message_at is nil' do
+      client.instance_variable_set(:@last_message_at, nil)
+
+      expect(client.healthy?(30)).to be false
+    end
+
+    it 'returns true when last message was within threshold' do
+      client.instance_variable_set(:@last_message_at, Time.now - 10)
+
+      expect(client.healthy?(30)).to be true
+    end
+
+    it 'returns false when last message exceeds threshold' do
+      client.instance_variable_set(:@last_message_at, Time.now - 60)
+
+      expect(client.healthy?(30)).to be false
+    end
+
+    it 'returns true when last message is exactly at threshold' do
+      # Use 29.9 seconds to avoid timing flakiness at exact boundary
+      client.instance_variable_set(:@last_message_at, Time.now - 29.9)
+
+      expect(client.healthy?(30)).to be true
+    end
+  end
+
   describe 'connection staleness detection' do
     let(:client) { described_class.new(app_token: app_token, logger: logger) }
     let(:websocket) { instance_double(WebSocket::Client::Simple::Client) }

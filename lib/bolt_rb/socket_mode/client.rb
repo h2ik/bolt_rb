@@ -96,6 +96,16 @@ module BoltRb
         @websocket&.open?
       end
 
+      # Checks if the connection is healthy based on recent message activity
+      #
+      # @param threshold [Numeric] Maximum seconds since last message to be considered healthy
+      # @return [Boolean] True if last message was received within threshold, false otherwise
+      def healthy?(threshold)
+        return false if @last_message_at.nil?
+
+        Time.now - @last_message_at <= threshold
+      end
+
       private
 
       # Main run loop that keeps the connection alive
