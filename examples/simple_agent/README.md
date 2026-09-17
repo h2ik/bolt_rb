@@ -30,3 +30,5 @@ Agent**. A new thread starts and the assistant sends suggested prompts.
 - `manifest.json` lists the scopes and events an assistant app must have.
   The **Agents & AI Apps** feature is enabled by the `assistant_view`
   block.
+- `agent.rb` sets `worker_threads`. Handlers run on a thread pool, so a
+  slow model call for one user does not block replies to another.
