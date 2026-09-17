@@ -1,0 +1,41 @@
+{
+  "display_information": {
+    "name": "Simple Agent",
+    "description": "A demo AI assistant built with bolt-rb"
+  },
+  "features": {
+    "app_home": {
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
+    "bot_user": {
+      "display_name": "Simple Agent",
+      "always_online": true
+    },
+    "assistant_view": {
+      "assistant_description": "Answers a few fixed questions to show the bolt-rb assistant flow.",
+      "suggested_prompts": []
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "assistant:write",
+        "chat:write",
+        "im:history"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": [
+        "assistant_thread_started",
+        "assistant_thread_context_changed",
+        "message.im"
+      ]
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false
+  }
+}
