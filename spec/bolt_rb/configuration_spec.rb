@@ -46,6 +46,15 @@ RSpec.describe BoltRb::Configuration do
         .to equal(config.assistant_thread_context_store)
     end
 
+    it 'defaults worker_threads to 5' do
+      expect(config.worker_threads).to eq(5)
+    end
+
+    it 'allows setting worker_threads' do
+      config.worker_threads = 2
+      expect(config.worker_threads).to eq(2)
+    end
+
     it 'allows setting assistant_thread_context_store' do
       store = Object.new
       config.assistant_thread_context_store = store

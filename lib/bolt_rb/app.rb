@@ -39,28 +39,37 @@ module BoltRb
     # @return [SocketMode::Client] The Socket Mode client instance
     attr_reader :socket_client
 
+    # @return [WorkerPool] The pool that runs handlers off the socket thread
+    attr_reader :worker_pool
+
     # Creates a new App instance
     #
-    # Initializes the Slack Web API client for making API calls
-    # and the Socket Mode client for receiving events.
+    # Initializes the Slack Web API client for making API calls,
+    # the worker pool for running handlers, and the Socket Mode
+    # client for receiving events.
     def initialize
       @config = BoltRb.configuration
       @router = BoltRb.router
       @client = Slack::Web::Client.new(token: config.bot_token)
+      @worker_pool = WorkerPool.new(size: config.worker_threads, logger: BoltRb.logger)
 
       setup_socket_client
     end
 
-    # Starts the Socket Mode connection
+    # Starts the worker pool and the Socket Mode connection
     #
     # Loads all handlers from configured paths and connects to Slack
-    # via Socket Mode to start receiving events.
+    # via Socket Mode to start receiving events. Blocks until the
+    # socket client stops, then drains the worker pool.
     #
     # @return [void]
     def start
       load_handlers
-      BoltRb.logger.info '[BoltRb] Starting app...'
+      BoltRb.logger.info "[BoltRb] Starting app with #{config.worker_threads} worker threads..."
+      @worker_pool.start
       @socket_client.start
+    ensure
+      @worker_pool.shutdown
     end
 
     # Stops the Socket Mode connection
@@ -128,14 +137,17 @@ module BoltRb
 
     # Handles incoming Socket Mode events
     #
-    # Extracts the payload from the Socket Mode envelope and routes it
-    # to the appropriate handlers.
+    # Extracts the payload from the Socket Mode envelope on the socket
+    # thread, then hands it to the worker pool so the socket thread can
+    # return to reading frames.
     #
     # @param data [Hash] The Socket Mode envelope data
     # @return [void]
     def handle_socket_event(data)
       payload = extract_payload(data)
-      process_event(payload) if payload
+      return unless payload
+
+      @worker_pool.post { process_event(payload) }
     rescue StandardError => e
       BoltRb.logger.error "[BoltRb] Error handling socket event: #{e.message}"
       BoltRb.logger.error e.backtrace.first(5).join("\n")
