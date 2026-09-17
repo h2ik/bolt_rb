@@ -77,6 +77,19 @@ RSpec.describe BoltRb::AssistantHandler do
     it 'does not match payloads without an event' do
       expect(handler_class.matches?({ 'command' => '/x' })).to be false
     end
+
+    it 'never matches on the abstract base class itself' do
+      payload = { 'event' => { 'type' => 'assistant_thread_started' } }
+      expect(described_class.matches?(payload)).to be false
+    end
+  end
+
+  describe 'router registration' do
+    it 'routes assistant events only to concrete subclasses' do
+      handler_class
+      payload = { 'event' => { 'type' => 'assistant_thread_started' } }
+      expect(BoltRb.router.route(payload)).to eq([handler_class])
+    end
   end
 
   let(:client) { instance_double(Slack::Web::Client) }

@@ -31,6 +31,9 @@ module BoltRb
         # @param payload [Hash] The incoming Slack event payload
         # @return [Boolean]
         def matches?(payload)
+          # The abstract class is auto-registered but must never run
+          return false if self == AssistantHandler
+
           event = payload['event']
           return false unless event
 
