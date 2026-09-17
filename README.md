@@ -46,6 +46,14 @@ app.start
 | `bot_token` | Your Slack bot token (`xoxb-...`) |
 | `app_token` | Your Slack app-level token (`xapp-...`) for Socket Mode |
 | `handler_paths` | Array of directories to load handlers from |
+| `worker_threads` | Number of threads that run handlers. Default `5`. |
+| `assistant_thread_context_store` | Store for AI assistant thread context. Default is in-process memory. |
+
+### Concurrency
+
+Handlers run on a pool of worker threads, not on the Socket Mode reader thread. A handler that waits on a slow API call does not block pings or later events. Raise `worker_threads` if many events wait in the queue. Lower it to `1` if your handlers share state that is not thread safe.
+
+On shutdown the app stops reading new events, finishes the handlers already in progress, and then exits.
 
 ## Handlers
 

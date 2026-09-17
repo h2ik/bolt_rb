@@ -24,6 +24,9 @@ module BoltRb
     attr_accessor :bot_token, :app_token, :signing_secret,
                   :handler_paths, :logger, :error_handler
 
+    # @return [Integer] Number of threads that run handlers. Default 5.
+    attr_accessor :worker_threads
+
     attr_writer :assistant_thread_context_store
 
     attr_reader :middleware
@@ -33,6 +36,7 @@ module BoltRb
       @logger = Logger.new($stdout)
       @logger.level = Logger::INFO
       @middleware = [BoltRb::Middleware::Logging]
+      @worker_threads = 5
     end
 
     # Return the store for assistant thread context

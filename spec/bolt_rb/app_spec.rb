@@ -126,4 +126,70 @@ RSpec.describe BoltRb::App do
       expect(first_handler_called).to be true
     end
   end
+
+  describe 'socket event dispatch' do
+    let(:app) { described_class.new }
+    let(:socket_callback) { @socket_callback }
+
+    before do
+      allow(socket_client).to receive(:on_message) { |&block| @socket_callback = block }
+      allow(socket_client).to receive(:start)
+      allow(socket_client).to receive(:stop)
+      allow(web_client).to receive(:chat_postMessage)
+      BoltRb.configuration.handler_paths = []
+      BoltRb.configuration.worker_threads = 2
+    end
+
+    def envelope(text)
+      {
+        'type' => 'events_api',
+        'envelope_id' => 'env-1',
+        'payload' => { 'event' => { 'type' => 'message', 'text' => text, 'channel' => 'C1' } }
+      }
+    end
+
+    def wait_until(seconds = 2)
+      deadline = Time.now + seconds
+      sleep 0.01 until yield || Time.now > deadline
+    end
+
+    it 'runs handlers on a worker thread while the app runs' do
+      seen = nil
+      handler = Class.new(BoltRb::EventHandler) do
+        listen_to :message
+        define_method(:handle) { seen = Thread.current }
+      end
+      BoltRb.router.clear
+      BoltRb.router.register(handler)
+
+      # socket_client.start is stubbed, so the pool must stay up until we say so
+      allow(socket_client).to receive(:start) do
+        socket_callback.call(envelope('hi'))
+        wait_until { seen }
+      end
+
+      app.start
+      expect(seen).not_to be_nil
+      expect(seen).not_to eq(Thread.current)
+    end
+
+    it 'shuts the worker pool down after the socket client stops' do
+      app.start
+      expect(app.worker_pool.running?).to be false
+    end
+
+    it 'finishes in-flight handlers before start returns' do
+      done = false
+      handler = Class.new(BoltRb::EventHandler) do
+        listen_to :message
+        define_method(:handle) { sleep 0.05; done = true }
+      end
+      BoltRb.router.clear
+      BoltRb.router.register(handler)
+      allow(socket_client).to receive(:start) { socket_callback.call(envelope('hi')) }
+
+      app.start
+      expect(done).to be true
+    end
+  end
 end
