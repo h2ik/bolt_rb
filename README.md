@@ -189,6 +189,62 @@ end
 
 **Available methods:** `view`, `callback_id`, `private_metadata`, `is_cleared?`, `user_id`, `ack`, `client`
 
+### AI Assistants
+
+Build an [AI app](https://docs.slack.dev/ai/agents) that lives in the Slack assistant panel. One handler class receives the full thread lifecycle:
+
+```ruby
+class SupportAssistant < BoltRb::AssistantHandler
+  # Slack opened a new assistant thread
+  def thread_started
+    say "Hi <@#{user}>! How can I help?"
+    set_suggested_prompts(
+      ['Summarize this channel', { title: 'Open tickets', message: 'List my open tickets' }],
+      title: 'Try one of these'
+    )
+  end
+
+  # The user moved to a different channel while the thread stayed open
+  def context_changed
+    # Optional. The new context is already saved for you.
+  end
+
+  # The user sent a message in the thread
+  def user_message
+    set_status 'is thinking...'
+    set_title text[0, 50]
+
+    channel_in_view = thread_context&.dig('channel_id')
+    say "You asked about <##{channel_in_view}>: #{text}"
+  end
+end
+```
+
+`thread_started` and `user_message` are required. `context_changed` is optional.
+
+`say` posts into the assistant thread. `set_status`, `set_title`, and `set_suggested_prompts` call the `assistant.threads.*` API methods for the current thread.
+
+**Thread context.** Slack sends the user's active channel with `assistant_thread_started` and `assistant_thread_context_changed`. The handler saves that context, so `thread_context` returns it during later user messages. The default store lives in process memory. Set your own store to share it across processes:
+
+```ruby
+BoltRb.configure do |config|
+  # Any object that responds to
+  #   get(channel_id:, thread_ts:)            -> Hash or nil
+  #   save(channel_id:, thread_ts:, context:) -> void
+  config.assistant_thread_context_store = RedisThreadContextStore.new
+end
+```
+
+**Testing.** The payload factory builds all three event types:
+
+```ruby
+payload.assistant_thread_started(context: { 'channel_id' => 'C123' })
+payload.assistant_thread_context_changed(context: { 'channel_id' => 'C456' })
+payload.assistant_message(text: 'hello', thread_ts: '1700000000.000100')
+```
+
+**Available methods:** `event`, `assistant_thread`, `thread_ts`, `text`, `user`, `channel`, `thread_context`, `save_thread_context`, `say`, `set_status`, `set_title`, `set_suggested_prompts`, `client`
+
 ## Handler Methods
 
 All handlers have access to:
@@ -225,6 +281,12 @@ end
 3. Generate an **App-Level Token** with `connections:write` scope
 4. Add a **Bot Token** with the scopes you need (e.g., `chat:write`, `commands`)
 5. Install the app to your workspace
+
+For AI assistants, also:
+
+1. Enable **Agents & AI Apps** under Features
+2. Add the `assistant:write`, `chat:write`, and `im:history` bot scopes
+3. Subscribe to the `assistant_thread_started`, `assistant_thread_context_changed`, and `message.im` events
 
 ## Development
 

@@ -35,6 +35,22 @@ RSpec.describe BoltRb::Configuration do
       config.error_handler = handler
       expect(config.error_handler).to eq(handler)
     end
+
+    it 'defaults assistant_thread_context_store to the memory store' do
+      expect(config.assistant_thread_context_store)
+        .to be_a(BoltRb::Assistant::MemoryThreadContextStore)
+    end
+
+    it 'memoizes the default assistant_thread_context_store' do
+      expect(config.assistant_thread_context_store)
+        .to equal(config.assistant_thread_context_store)
+    end
+
+    it 'allows setting assistant_thread_context_store' do
+      store = Object.new
+      config.assistant_thread_context_store = store
+      expect(config.assistant_thread_context_store).to equal(store)
+    end
   end
 
   describe '#use' do

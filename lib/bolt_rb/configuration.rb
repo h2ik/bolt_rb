@@ -24,6 +24,8 @@ module BoltRb
     attr_accessor :bot_token, :app_token, :signing_secret,
                   :handler_paths, :logger, :error_handler
 
+    attr_writer :assistant_thread_context_store
+
     attr_reader :middleware
 
     def initialize
@@ -31,6 +33,17 @@ module BoltRb
       @logger = Logger.new($stdout)
       @logger.level = Logger::INFO
       @middleware = [BoltRb::Middleware::Logging]
+    end
+
+    # Return the store for assistant thread context
+    #
+    # Defaults to an in-process memory store. Any object that responds to
+    # `get(channel_id:, thread_ts:)` and `save(channel_id:, thread_ts:, context:)`
+    # can replace it.
+    #
+    # @return [Object] The thread context store
+    def assistant_thread_context_store
+      @assistant_thread_context_store ||= BoltRb::Assistant::MemoryThreadContextStore.new
     end
 
     # Add middleware to the stack
