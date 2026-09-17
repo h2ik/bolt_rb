@@ -44,6 +44,9 @@ module BoltRb
         allow(client).to receive(:chat_update).and_return({ 'ok' => true })
         allow(client).to receive(:views_open).and_return({ 'ok' => true })
         allow(client).to receive(:views_update).and_return({ 'ok' => true })
+        allow(client).to receive(:assistant_threads_setStatus).and_return({ 'ok' => true })
+        allow(client).to receive(:assistant_threads_setTitle).and_return({ 'ok' => true })
+        allow(client).to receive(:assistant_threads_setSuggestedPrompts).and_return({ 'ok' => true })
         client
       end
 

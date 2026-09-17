@@ -82,4 +82,50 @@ RSpec.describe BoltRb::Testing::PayloadFactory do
       expect(payload['message']['text']).to eq('Original text')
     end
   end
+
+  describe '.assistant_thread_started' do
+    it 'creates an assistant_thread_started payload' do
+      payload = described_class.assistant_thread_started
+      expect(payload['event']['type']).to eq('assistant_thread_started')
+      expect(payload['event']['assistant_thread']['user_id']).to eq('U123TEST')
+      expect(payload['event']['assistant_thread']['channel_id']).to eq('D456TEST')
+      expect(payload['event']['assistant_thread']['thread_ts']).to be_a(String)
+    end
+
+    it 'allows customizing the context' do
+      payload = described_class.assistant_thread_started(context: { 'channel_id' => 'C1' })
+      expect(payload['event']['assistant_thread']['context']).to eq({ 'channel_id' => 'C1' })
+    end
+
+    it 'matches the AssistantHandler' do
+      handler = Class.new(BoltRb::AssistantHandler)
+      expect(handler.matches?(described_class.assistant_thread_started)).to be true
+    end
+  end
+
+  describe '.assistant_thread_context_changed' do
+    it 'creates an assistant_thread_context_changed payload' do
+      payload = described_class.assistant_thread_context_changed(context: { 'channel_id' => 'C9' })
+      expect(payload['event']['type']).to eq('assistant_thread_context_changed')
+      expect(payload['event']['assistant_thread']['context']).to eq({ 'channel_id' => 'C9' })
+    end
+  end
+
+  describe '.assistant_message' do
+    it 'creates a threaded direct message payload' do
+      payload = described_class.assistant_message(text: 'hello', thread_ts: '1.0')
+      event = payload['event']
+      expect(event['type']).to eq('message')
+      expect(event['channel_type']).to eq('im')
+      expect(event['thread_ts']).to eq('1.0')
+      expect(event['text']).to eq('hello')
+      expect(event['channel']).to eq('D456TEST')
+    end
+
+    it 'matches the AssistantHandler' do
+      handler = Class.new(BoltRb::AssistantHandler)
+      payload = described_class.assistant_message(text: 'hello', thread_ts: '1.0')
+      expect(handler.matches?(payload)).to be true
+    end
+  end
 end

@@ -129,7 +129,71 @@ module BoltRb
           payload
         end
 
+        # Creates an assistant_thread_started event payload
+        #
+        # @param user [String] The user ID (default: 'U123TEST')
+        # @param channel [String] The DM channel ID (default: 'D456TEST')
+        # @param thread_ts [String, nil] The thread timestamp (auto-generated if nil)
+        # @param context [Hash] The thread context (default: a channel and team)
+        # @return [Hash] The assistant_thread_started payload
+        def assistant_thread_started(user: 'U123TEST', channel: 'D456TEST', thread_ts: nil, context: nil)
+          assistant_thread_event('assistant_thread_started', user, channel, thread_ts, context)
+        end
+
+        # Creates an assistant_thread_context_changed event payload
+        #
+        # @param user [String] The user ID (default: 'U123TEST')
+        # @param channel [String] The DM channel ID (default: 'D456TEST')
+        # @param thread_ts [String, nil] The thread timestamp (auto-generated if nil)
+        # @param context [Hash] The new thread context (default: a channel and team)
+        # @return [Hash] The assistant_thread_context_changed payload
+        def assistant_thread_context_changed(user: 'U123TEST', channel: 'D456TEST', thread_ts: nil,
+                                             context: nil)
+          assistant_thread_event('assistant_thread_context_changed', user, channel, thread_ts, context)
+        end
+
+        # Creates a user message inside an assistant thread
+        #
+        # @param text [String] The message text
+        # @param thread_ts [String] The assistant thread timestamp
+        # @param user [String] The user ID (default: 'U123TEST')
+        # @param channel [String] The DM channel ID (default: 'D456TEST')
+        # @return [Hash] The threaded direct message payload
+        def assistant_message(text:, thread_ts:, user: 'U123TEST', channel: 'D456TEST')
+          {
+            'type' => 'event_callback',
+            'event' => {
+              'type' => 'message',
+              'channel_type' => 'im',
+              'text' => text,
+              'user' => user,
+              'channel' => channel,
+              'ts' => generate_ts,
+              'thread_ts' => thread_ts
+            }
+          }
+        end
+
         private
+
+        # Builds an assistant thread event payload
+        #
+        # @return [Hash]
+        def assistant_thread_event(type, user, channel, thread_ts, context)
+          {
+            'type' => 'event_callback',
+            'event' => {
+              'type' => type,
+              'assistant_thread' => {
+                'user_id' => user,
+                'channel_id' => channel,
+                'thread_ts' => thread_ts || generate_ts,
+                'context' => context || { 'channel_id' => 'C456TEST', 'team_id' => 'T123TEST' }
+              },
+              'event_ts' => generate_ts
+            }
+          }
+        end
 
         # Generates a fake Slack timestamp
         #
